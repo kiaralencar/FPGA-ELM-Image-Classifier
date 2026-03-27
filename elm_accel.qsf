@@ -39,7 +39,7 @@
 
 set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CSEMA5F31C6
-set_global_assignment -name TOP_LEVEL_ENTITY mem_block
+set_global_assignment -name TOP_LEVEL_ENTITY elm_accel
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 23.1STD.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "11:28:22  MARCH 27, 2026"
 set_global_assignment -name LAST_QUARTUS_VERSION "23.1std.0 Lite Edition"
@@ -57,8 +57,10 @@ set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_boundary_scan
 set_global_assignment -name VERILOG_FILE mem_block.v
 set_global_assignment -name VERILOG_FILE mac.v
+set_global_assignment -name BOARD "DE1-SoC Board"
+set_global_assignment -name VERILOG_FILE activation.v
+set_global_assignment -name VERILOG_FILE argmax.v
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
-set_global_assignment -name BOARD "DE1-SoC Board"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
