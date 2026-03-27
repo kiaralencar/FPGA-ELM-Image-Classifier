@@ -1,0 +1,23 @@
+# Quartus
+db/
+incremental_db/
+output_files/
+simulation/
+greybox_tmp/
+
+# Arquivos gerados
+*.rpt
+*.summary
+*.smsg
+*.done
+*.sof
+*.pof
+*.jdi
+
+# Backup
+*.bak
+*~
+
+# Sistema
+.DS_Store
+Thumbs.db
