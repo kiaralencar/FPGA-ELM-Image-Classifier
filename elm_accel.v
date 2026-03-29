@@ -28,7 +28,7 @@ wire [16:0] win_addr_r;
 wire [15:0] win_data_r;
 wire [6:0]  b_addr_r;
 wire [15:0] b_data_r;
-wire [13:0] beta_addr_r;
+wire [10:0] beta_addr_r;
 wire [15:0] beta_data_r;
 wire [6:0]  h_addr_w;
 wire [15:0] h_data_w;

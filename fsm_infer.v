@@ -10,7 +10,7 @@ module fsm_infer (
     output reg  [9:0]  img_addr_r,
     output reg  [16:0] win_addr_r,
     output reg  [6:0]  b_addr_r,
-    output reg  [13:0] beta_addr_r,
+    output reg  [10:0] beta_addr_r,
     output reg  [6:0]  h_addr_w,
     output reg  [15:0] h_data_w,
     output reg         h_wr_en,
@@ -131,7 +131,7 @@ always @(posedge clk or posedge reset) begin
                 mac_clear    <= 1'b0;
                 mac_enable   <= 1'b1;
                 h_addr_r     <= n;
-                beta_addr_r <= {4'b0, k} * 14'd128 + {7'b0, n};
+                beta_addr_r <= ({4'b0, k} * 11'd128) + {4'b0, n};
                 if (n == 7'd127) begin
                     n          <= 7'd0;
                     mac_enable <= 1'b0;

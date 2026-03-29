@@ -17,7 +17,7 @@ module mem_block (
     output wire [15:0] b_data_r,
 
     // interface beta
-    input  wire [13:0] beta_addr_r,
+    input  wire [10:0] beta_addr_r,
     output wire [15:0] beta_data_r,
 
     // interface MEM_H
