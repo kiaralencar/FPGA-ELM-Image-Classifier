@@ -1,0 +1,45 @@
+[2026-03-29 13:04:44 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+design.sv:1
+ERROR: design.sv:51: $readmemh: Unable to open W_in_q.hex for reading.
+ERROR: design.sv:60: $readmemh: Unable to open b_q.hex for reading.
+ERROR: design.sv:69: $readmemh: Unable to open beta_q.hex for reading.
+--- MEM_IMG: escrita sequencial ---
+--- MEM_IMG: leitura e verificacao ---
+OK IMG[0]=1
+OK IMG[1]=2
+OK IMG[2]=3
+OK IMG[3]=4
+OK IMG[4]=5
+OK IMG[5]=6
+OK IMG[6]=7
+OK IMG[7]=8
+OK IMG[8]=9
+OK IMG[9]=a
+--- MEM_H: escrita e leitura ---
+OK H[0]=100
+OK H[1]=200
+OK H[2]=300
+OK H[3]=400
+OK H[4]=500
+OK H[5]=600
+OK H[6]=700
+OK H[7]=800
+--- MEM_Y: escrita e leitura ---
+OK Y[0]=f00
+OK Y[1]=e00
+OK Y[2]=d00
+OK Y[3]=c00
+OK Y[4]=b00
+OK Y[5]=a00
+OK Y[6]=900
+OK Y[7]=800
+OK Y[8]=700
+OK Y[9]=600
+=== 0 erro(s) ===
+testbench.sv:113: $finish called at 566000 (1ps)
+Finding VCD file...
+No *.vcd file found. EPWave will not open. Did you use '$dumpfile("dump.vcd"); $dumpvars;'?
+Done
