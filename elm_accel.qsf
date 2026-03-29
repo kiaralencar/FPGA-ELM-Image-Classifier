@@ -43,26 +43,37 @@ set_global_assignment -name TOP_LEVEL_ENTITY elm_accel
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 23.1STD.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "11:28:22  MARCH 27, 2026"
 set_global_assignment -name LAST_QUARTUS_VERSION "23.1std.0 Lite Edition"
-set_global_assignment -name VERILOG_FILE elm_accel.v
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
-set_global_assignment -name EDA_SIMULATION_TOOL "Questa Intel FPGA (Verilog)"
+set_global_assignment -name EDA_SIMULATION_TOOL "Questa Altera FPGA (Verilog)"
 set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation
 set_global_assignment -name EDA_OUTPUT_DATA_FORMAT "VERILOG HDL" -section_id eda_simulation
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_timing
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_symbol
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_signal_integrity
 set_global_assignment -name EDA_GENERATE_FUNCTIONAL_NETLIST OFF -section_id eda_board_design_boundary_scan
+set_global_assignment -name BOARD "DE1-SoC Board"
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name VERILOG_FILE testbenches/tb_mac.v
+set_global_assignment -name VERILOG_FILE testbenches/tb_argmax.v
+set_global_assignment -name VERILOG_FILE testbenches/tb_activation.v
+set_global_assignment -name VERILOG_FILE elm_accel.v
 set_global_assignment -name VERILOG_FILE mem_block.v
 set_global_assignment -name VERILOG_FILE mac.v
-set_global_assignment -name BOARD "DE1-SoC Board"
 set_global_assignment -name VERILOG_FILE activation.v
 set_global_assignment -name VERILOG_FILE argmax.v
 set_global_assignment -name VERILOG_FILE fsm_infer.v
 set_global_assignment -name VERILOG_FILE uc.v
-set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
-set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
-set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name EDA_TEST_BENCH_ENABLE_STATUS TEST_BENCH_MODE -section_id eda_simulation
+set_global_assignment -name EDA_NATIVELINK_SIMULATION_TEST_BENCH tb_mac.v -section_id eda_simulation
+set_global_assignment -name EDA_TEST_BENCH_NAME tb_mac.v -section_id eda_simulation
+set_global_assignment -name EDA_DESIGN_INSTANCE_NAME NA -section_id tb_mac.v
+set_global_assignment -name EDA_TEST_BENCH_MODULE_NAME mac.v -section_id tb_mac.v
+set_global_assignment -name EDA_TEST_BENCH_FILE testbenches/tb_mac.v -section_id tb_mac.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
