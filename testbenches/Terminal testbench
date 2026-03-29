@@ -1,0 +1,149 @@
+//Terminação da simulação com testbench do módulo activation
+[2026-03-29 14:54:26 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module activation declared here: design.sv:1
+--- Verificando entradas conhecidas da LUT ---
+OK idx=0: result=a
+OK idx=128: result=818
+OK idx=255: result=ff6
+OK idx=64: result=c4
+OK idx=192: result=f44
+--- Verificando default (indice invalido nao ocorre pois 8b cobre tudo) ---
+OK: todos 256 indices produzem saida valida
+=== 0 erro(s) ===
+testbench.sv:74: $finish called at 2616000 (1ps)
+Done
+
+//Terminação da simulação com testbench do módulo argmax
+[2026-03-29 14:57:18 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module argmax declared here: design.sv:1
+--- Teste 1: maior em k=3 ---
+OK: pred=3
+--- Teste 2: maior em k=0 ---
+OK: pred=0
+--- Teste 3: maior em k=9 ---
+OK: pred=9
+--- Teste 4: todos iguais, pred deve ser 0 ---
+OK: pred=0
+=== 0 erro(s) ===
+testbench.sv:84: $finish called at 486000 (1ps)
+Done
+
+//Terminação da simulação com testbench do módulo fsm_infer.
+[2026-03-29 14:18:38 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module fsm_infer declared here: design.sv:1
+testbench.sv:42: warning: Port 10 (beta_addr_r) of fsm_infer expects 11 bits, got 14.
+testbench.sv:42:        : Padding 3 high bits of the expression.
+--- Teste 1: estado inicial ---
+OK: READY, busy=0 done=0
+--- Teste 2: start dispara busy ---
+OK: busy=1 apos start
+--- Teste 3: mac_enable ativo em MAC_H ---
+OK: mac_enable=1
+--- Aguardando done (timeout 200000 ciclos) ---
+OK: done=1 em 101908 ciclos
+OK: pred=5
+=== 0 erro(s) ===
+testbench.sv:107: $finish called at 1019106000 (1ps)
+Finding VCD file...
+No *.vcd file found. EPWave will not open. Did you use '$dumpfile("dump.vcd"); $dumpvars;'?
+Done
+
+//Terminação da simulação com testbench do módulo mac
+[2026-03-29 14:36:22 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module mac declared here: design.sv:1
+testbench.sv:21: warning: Instantiating module mac with dangling input port 5 (add_bias) floating.
+testbench.sv:21: warning: Instantiating module mac with dangling input port 8 (bias) floating.
+--- Teste 1: reset zera acumulador ---
+OK: acc=0 apos reset
+--- Teste 2: 3 acumulacoes pixel=10 peso=256 ---
+OK: acc=7680
+--- Teste 3: enable=0 nao acumula ---
+OK: acc mantido sem enable
+--- Teste 4: clear_acc ---
+OK: acc=0 apos clear
+--- Teste 5: produto maximo pixel=255 peso=0x7FFF ---
+FALHOU: acc=17179836417 esperado=8355585
+=== 1 erro(s) ===
+testbench.sv:89: $finish called at 66000 (1ps)
+Finding VCD file...
+No *.vcd file found. EPWave will not open. Did you use '$dumpfile("dump.vcd"); $dumpvars;'?
+Done
+
+//Terminação da simulação com testbench do módulo uc
+[2026-03-29 15:05:26 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module uc declared here: design.sv:1
+--- Teste 1: STORE_IMG ---
+FALHOU: wr_en=1 addr=20 pixel=ab
+--- Teste 2: STORE_BIAS ---
+FALHOU BIAS: wr_en=0 data=xxxx
+--- Teste 3: START sem dados prontos ---
+OK: status=ERROR como esperado
+--- Teste 4: seta img_ready com addr=783 ---
+(testes de w_ready/beta_ready omitidos ? requerem 100k+ ciclos)
+--- Teste 5: infer_done ? status=DONE pred=7 ---
+OK: status=DONE pred=7
+=== 2 erro(s) ===
+testbench.sv:121: $finish called at 76000 (1ps)
+Done
+
+//Terminação da simulação com testbench do módulo mem_block
+[2026-03-29 19:39:59 UTC] iverilog '-Wall' '-g2012' design.sv testbench.sv  && unbuffer vvp a.out  
+warning: Some design elements have no explicit time unit and/or
+       : time precision. This may cause confusing timing results.
+       : Affected design elements are:
+       :   -- module mem_block declared here: design.sv:1
+testbench.sv:37: warning: Port 11 (beta_addr_r) of mem_block expects 11 bits, got 14.
+testbench.sv:37:        : Pruning 3 high bits of the expression.
+ERROR: design.sv:51: $readmemh: Unable to open W_in_q.hex for reading.
+ERROR: design.sv:60: $readmemh: Unable to open b_q.hex for reading.
+ERROR: design.sv:69: $readmemh: Unable to open beta_q.hex for reading.
+--- MEM_IMG: escrita sequencial ---
+--- MEM_IMG: leitura e verificacao ---
+OK IMG[0]=1
+OK IMG[1]=2
+OK IMG[2]=3
+OK IMG[3]=4
+OK IMG[4]=5
+OK IMG[5]=6
+OK IMG[6]=7
+OK IMG[7]=8
+OK IMG[8]=9
+OK IMG[9]=a
+--- MEM_H: escrita e leitura ---
+OK H[0]=100
+OK H[1]=200
+OK H[2]=300
+OK H[3]=400
+OK H[4]=500
+OK H[5]=600
+OK H[6]=700
+OK H[7]=800
+--- MEM_Y: escrita e leitura ---
+OK Y[0]=f00
+OK Y[1]=e00
+OK Y[2]=d00
+OK Y[3]=c00
+OK Y[4]=b00
+OK Y[5]=a00
+OK Y[6]=900
+OK Y[7]=800
+OK Y[8]=700
+OK Y[9]=600
+=== 0 erro(s) ===
+testbench.sv:113: $finish called at 566000 (1ps)
+Done
