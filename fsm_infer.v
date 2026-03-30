@@ -35,7 +35,8 @@ module fsm_infer (
     // resultado final
     output reg  [3:0]  pred,
     output reg         done,
-    output reg         busy
+    output reg         busy,
+	 output reg [31:0]  cycles
 );
 
 // estados
@@ -71,6 +72,7 @@ always @(posedge clk or posedge reset) begin
         y_wr_en      <= 1'b0;
         done         <= 1'b0;
         busy         <= 1'b0;
+		  cycles       <= 32'd0;
     end
     else begin
         case (state)
@@ -78,6 +80,7 @@ always @(posedge clk or posedge reset) begin
                 done  <= 1'b0;
                 busy  <= 1'b0;
                 if (start) begin
+						  cycles <= 32'd0;  // zera antes de começar
                     state <= MAC_H;
                     busy  <= 1'b1;
                     i     <= 10'd0;
@@ -88,6 +91,7 @@ always @(posedge clk or posedge reset) begin
             end
 
             MAC_H: begin
+					 cycles <= cycles + 32'd1;
                 mac_clear      <= 1'b0;
                 mac_enable     <= 1'b1;
                 img_addr_r     <= i[9:0];
@@ -104,12 +108,14 @@ always @(posedge clk or posedge reset) begin
             end
 
             ACTIV: begin
+					 cycles <= cycles + 32'd1;
 					 add_bias   <= 1'b0;  // desliga add_bias
                 act_enable <= 1'b1;
                 state      <= SAVE_H;
             end
 
             SAVE_H: begin
+					 cycles <= cycles + 32'd1;
                 act_enable <= 1'b0;
                 h_wr_en    <= 1'b1;
                 h_addr_w   <= n;
@@ -128,6 +134,7 @@ always @(posedge clk or posedge reset) begin
             end
 
             MAC_Y: begin
+					 cycles <= cycles + 32'd1;
                 mac_clear    <= 1'b0;
                 mac_enable   <= 1'b1;
                 h_addr_r     <= n;
@@ -142,6 +149,7 @@ always @(posedge clk or posedge reset) begin
             end
 
             SAVE_Y: begin
+					 cycles <= cycles + 32'd1;
                 y_wr_en  <= 1'b1;
                 y_addr_w <= k;
 					 y_data_w <= mac_acc[27:12];
@@ -158,6 +166,7 @@ always @(posedge clk or posedge reset) begin
             end
 
             DO_ARG: begin
+					 cycles <= cycles + 32'd1;
                 argmax_enable <= 1'b1;
                 argmax_k      <= k;
                 y_addr_r      <= k;

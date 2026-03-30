@@ -4,7 +4,8 @@ module elm_accel (
     input  wire [31:0] instruction,
     input  wire        instr_valid,
     output wire [1:0]  status,
-    output wire [3:0]  pred
+    output wire [3:0]  pred,
+	 output wire [31:0] cycles
 );
 
 // fios entre uc e mem_block
@@ -63,6 +64,7 @@ wire        infer_done;
 wire        infer_busy;
 wire [3:0]  infer_pred;
 
+
 // instancia UC
 uc u_uc (
     .clk         (clk),
@@ -116,7 +118,8 @@ fsm_infer u_fsm (
 	 .act_result  (act_result),
 	 .mac_acc     (mac_acc),
 	 .add_bias (mac_add_bias),
-	 .argmax_pred (argmax_pred)
+	 .argmax_pred (argmax_pred),
+	 .cycles (cycles)
 );
 
 // instancia mem_block

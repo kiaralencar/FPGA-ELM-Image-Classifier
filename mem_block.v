@@ -37,6 +37,9 @@ module mem_block (
 
 // MEM_IMG
 reg [15:0] mem_img [0:783];
+initial $readmemh("img_test0.hex", mem_img);  // pra testar o 0
+// initial $readmemh("img_test3.hex", mem_img);  // pra testar o 3
+// initial $readmemh("img_test8.hex", mem_img);  // pra testar o 8
 always @(posedge clk)
     if (img_wr_en)
         mem_img[img_addr_w] <= {8'b0, img_data_w};
