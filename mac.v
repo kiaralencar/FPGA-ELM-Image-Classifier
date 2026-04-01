@@ -10,15 +10,21 @@ module mac (
     output reg  [33:0] acumulador
 );
 
+// Produto intermediário: pixel (8b unsigned) * peso (16b signed) = 24b signed
+// Declarado com o tamanho exato do resultado para não truncar
+wire signed [23:0] produto = $signed({1'b0, pixel}) * $signed(peso);
+
 always @(posedge clk or posedge reset) begin
     if (reset)
-        acumulador <= 0;
+        acumulador <= 34'd0;
     else if (clear_acc)
-        acumulador <= 0;
+        acumulador <= 34'd0;
     else if (add_bias)
+        // bias é Q4.12 com sinal: extensão de sinal de 16 para 34 bits
         acumulador <= acumulador + {{18{bias[15]}}, bias};
     else if (enable)
-        acumulador <= acumulador + ({{26{pixel[7]}}, pixel} * {{18{peso[15]}}, peso});
+        // produto é 24b signed: extensão de sinal de 24 para 34 bits
+        acumulador <= acumulador + {{10{produto[23]}}, produto};
 end
 
 endmodule
