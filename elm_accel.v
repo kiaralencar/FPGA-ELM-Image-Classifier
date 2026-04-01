@@ -164,7 +164,9 @@ mac u_mac (
 // instancia activation
 activation u_act (
     .clk    (clk),
-    .acc_in (mac_acc),
+	 .reset (reset),
+	 .enable (act_enable),
+    .acc_in (mac_acc[27:12]),
     .result (act_result)
 );
 
