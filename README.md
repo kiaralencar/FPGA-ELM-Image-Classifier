@@ -90,3 +90,44 @@ A função de ativação recebe como entrada os bits [27:12] do acumulador MAC, 
 
 O módulo top_de1soc realiza a interface entre o acelerador ELM e os periféricos da placa DE1-SoC. Ele implementa detecção de borda para os quatro botões KEY, garantindo que cada pressionamento gere um pulso de exatamente um ciclo de clock. O KEY[0] realiza o reset geral do sistema, o KEY[1] envia uma instrução pelo fluxo normal, o KEY[2] captura e exibe o estado atual nos displays, e o KEY[3] aciona a escrita manual nas memórias.
 A instrução enviada pelo KEY[1] é montada a partir das chaves SW, onde SW[3:0] define o opcode e SW[9:4] define o endereço parcial. Os displays HEX0 a HEX4 exibem o estado do sistema em texto — rEAdY, bUSY, donE ou Erro — capturado no momento do pressionamento do KEY[2]. O display HEX5 exibe o dígito predito após a primeira inferência concluída, permanecendo apagado até que o sistema atinja o estado DONE pela primeira vez. Os LEDs LEDR[0], LEDR[1] e LEDR[2] indicam respectivamente se a imagem, os pesos e o bias foram carregados, enquanto LEDR[6] a LEDR[9] refletem o estado atual do sistema.
+
+## Modo de Uso
+
+### Configuração Inicial no Quartus Prime
+
+Antes de operar o sistema na placa, é necessário abrir o In-System Memory Content Editor no Quartus Prime. Nessa ferramenta é possível verificar que as memórias MEM_WIN, MEM_BIAS e MEM_BETA já estão carregadas com os pesos da rede neural através dos arquivos .mif gerados a partir do modelo treinado. O único dado que precisa ser carregado pelo usuário é a imagem de entrada, selecionando o arquivo .mif correspondente diretamente na ferramenta e escrevendo na memória MEM_IMG.
+
+### Operação na Placa
+
+Após carregar a imagem, o sistema já está pronto para operar. Ao ligar a placa, o sistema inicia no estado rEAdY, exibido nos displays de sete segmentos HEX0 a HEX4. Os LEDs LEDR[0], LEDR[1] e LEDR[2] indicam respectivamente se a imagem, os pesos W_in e o bias estão carregados nas memórias.
+Os botões e chaves operam da seguinte forma:
+
+KEY[0] — Reset geral do sistema, retornando ao estado READY
+KEY[1] — Envia a instrução montada pelas chaves SW pelo fluxo normal
+KEY[2] — Captura e exibe o estado atual do sistema nos displays HEX0 a HEX4
+KEY[3] — Grava na memória usando a instrução de escrita manual
+
+As chaves SW controlam as instruções enviadas:
+
+SW[3:0] — Define o opcode da instrução (0001 = STORE_IMG, 0010 = STORE_WEIGHTS, 0011 = STORE_BIAS, 0100 = START)
+SW[9:4] — Define o endereço parcial no fluxo normal
+
+Para iniciar a inferência, configure SW[3:0] = 0100 e pressione KEY[1]. O display passará a mostrar bUSY durante o processamento e donE ao término, exibindo o dígito predito no display HEX5.
+
+### Escrita Manual nas Memórias
+
+O sistema possui um mecanismo de escrita manual nas memórias acionado pelo KEY[3], projetado para permitir testes e para servir de base para a integração com o processador ARM nos próximos marcos. Nesse modo, a instrução é montada a partir das chaves SW da seguinte forma:
+
+SW[3:0] — Define o opcode (1 = MEM_IMG, 2 = MEM_WIN, 3 = MEM_BIAS, 6 = MEM_BETA)
+SW[6:4] — Define os 3 bits de endereço
+SW[9:7] — Define os 3 bits do dado a ser escrito
+
+Ao pressionar KEY[3], a instrução montada é enviada para a UC pelo barramento de escrita manual, que é completamente separado do fluxo normal. Essa escrita é bloqueada automaticamente enquanto a inferência estiver em andamento, evitando corrupção dos dados nas memórias. Esse mecanismo representa o embrião da interface MMIO que será utilizada pelo driver Linux no próximo marco, onde o processador ARM poderá escrever diretamente nas memórias do co-processador via mapeamento de memória.
+
+## Conclusão
+
+O desenvolvimento do projeto de classificação de imagens em FPGA permitiu colocar em prática conceitos fundamentais de sistemas digitais e arquitetura de computadores, resultando em um co-processador funcional capaz de identificar dígitos numéricos através de uma rede neural ELM implementada inteiramente em hardware.
+
+Todos os requisitos propostos foram atendidos. O sistema realiza corretamente a inferência da rede neural, exibindo o dígito predito nos displays da placa DE1-SoC, com o conjunto de instruções ISA funcionando conforme especificado e a interface com a placa respondendo adequadamente aos botões e chaves.
+
+Ao longo do desenvolvimento, a equipe aprofundou seus conhecimentos em diversas áreas. A implementação do conjunto de instruções ISA trouxe uma compreensão prática de como um co-processador se comunica com o mundo externo. O estudo da rede neural ELM permitiu entender como algoritmos de aprendizado de máquina podem ser traduzidos para hardware. A representação em ponto fixo Q4.12, o uso de arquivos .mif para inicialização das memórias e a utilização das BRAMs M10K da FPGA foram aspectos que exigiram aprendizado específico e contribuíram para um entendimento mais profundo do funcionamento das memórias em hardware. O projeto também contribuiu para o aperfeiçoamento do conhecimento em Verilog, máquinas de estados finitas e na utilização dos recursos da placa DE1-SoC.
