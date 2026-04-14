@@ -39,6 +39,7 @@ localparam OP_STORE_IMG     = 4'd1;
 localparam OP_STORE_WEIGHTS = 4'd2;
 localparam OP_STORE_BIAS    = 4'd3;
 localparam OP_START         = 4'd4;
+localparam OP_STATUS        = 4'd5;
 
 // opcodes escrita manual (KEY[3])
 localparam OP_MEM_IMG  = 4'd1;
@@ -92,7 +93,6 @@ reg        mw_beta_wr_en;
 
 // ============================================================
 // MUX de saida: escrita manual tem prioridade se ativa
-// (nunca ocorrem simultaneamente por design)
 // ============================================================
 assign img_wr_en   = uc_img_wr_en  | mw_img_wr_en;
 assign img_addr_w  = mw_img_wr_en  ? mw_img_addr  : uc_img_addr_w;
@@ -179,6 +179,10 @@ always @(posedge clk or posedge reset) begin
                         status <= ST_ERROR;
                 end
 
+                OP_STATUS: begin
+                    // so consulta — status ja mantido internamente
+                end
+
                 default: status <= ST_ERROR;
             endcase
         end
@@ -204,13 +208,11 @@ always @(posedge clk or posedge reset) begin
         mw_beta_data  <= 16'd0;
     end
     else begin
-        // desliga a cada ciclo (pulso de 1 ciclo)
         mw_img_wr_en  <= 1'b0;
         mw_win_wr_en  <= 1'b0;
         mw_b_wr_en    <= 1'b0;
         mw_beta_wr_en <= 1'b0;
 
-        // so executa se nao estiver inferindo
         if (mem_write_valid && !infer_busy) begin
             case (mem_write_instr[31:28])
 
@@ -238,7 +240,7 @@ always @(posedge clk or posedge reset) begin
                     mw_beta_wr_en <= 1'b1;
                 end
 
-                default: ; // opcode desconhecido, ignora
+                default: ;
             endcase
         end
     end
