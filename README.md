@@ -55,3 +55,38 @@ A FSM é o componente responsável por coordenar e sequenciar todas as operaçõ
 ### Argmax
 
 O argmax é a operação final da inferência, responsável por identificar o índice do maior valor entre os 10 resultados da camada de saída, correspondendo ao dígito previsto. No projeto, o argmax foi implementado de forma combinacional diretamente dentro da FSM, operando sobre um banco de 10 registradores internos y_reg[0..9] ao invés de uma memória externa, o que simplifica o circuito e reduz a latência desta etapa
+
+## Descrição da Solução
+
+### Arquitetura Geral do Co-processador
+
+O acelerador ELM (elm_accel) é organizado em uma hierarquia de módulos interconectados por barramentos de fios agrupados em três categorias: fios de escrita, que partem da UC em direção às memórias; fios de leitura, que partem da FSM em direção às memórias; e fios de controle, que conectam a FSM às unidades de processamento MAC e Ativação. Essa separação garante que escrita e leitura nas memórias nunca ocorram simultaneamente, evitando conflitos de acesso.
+O fluxo de operação do sistema segue três fases distintas. Na primeira fase, a UC recebe as instruções de carregamento e escreve os dados nas memórias correspondentes, ativando as flags de controle conforme cada memória é preenchida. Na segunda fase, após o recebimento da instrução START com todas as flags ativas, a FSM assume o controle e executa sequencialmente os cálculos das duas camadas da rede neural. Na terceira fase, o resultado da inferência é disponibilizado no registrador pred e exibido no display HEX5 da placa.
+
+### Unidade de Controle (UC)
+
+A UC recebe como entrada as instruções de 32 bits no formato ISA, o sinal instr_valid indicando que uma instrução está disponível, e os sinais infer_done e infer_busy vindos da FSM. Como saída, gera os sinais de escrita para cada memória (endereço, dado e enable de escrita), as flags img_ready, w_ready e b_ready, o sinal start_infer para disparar a FSM, e o status atual do sistema.
+A UC opera em dois modos independentes. No fluxo normal, acionado pelo KEY[1], ela decodifica o opcode nos bits [31:28] da instrução e direciona o dado para a memória correta: opcode 0001 escreve na MEM_IMG, opcode 0010 escreve na MEM_WIN, opcode 0011 escreve na MEM_BIAS, e opcode 0100 dispara a inferência. No modo de escrita manual, acionado pelo KEY[3] e isolado do fluxo normal, é possível escrever diretamente em qualquer memória durante testes, sendo bloqueado automaticamente enquanto a inferência estiver em andamento. Um multiplexador de saída prioriza a escrita manual quando ativa, garantindo que os dois modos nunca conflitem.
+
+### Unidade de Controle (UC) 
+
+A UC recebe como entrada as instruções de 32 bits no formato ISA, o sinal instr_valid indicando que uma instrução está disponível, e os sinais infer_done e infer_busy vindos da FSM. Como saída, gera os sinais de escrita para cada memória (endereço, dado e enable de escrita), as flags img_ready, w_ready e b_ready, o sinal start_infer para disparar a FSM, e o status atual do sistema.
+A UC opera em dois modos independentes. No fluxo normal, acionado pelo KEY[1], ela decodifica o opcode nos bits [31:28] da instrução e direciona o dado para a memória correta: opcode 0001 escreve na MEM_IMG, opcode 0010 escreve na MEM_WIN, opcode 0011 escreve na MEM_BIAS, e opcode 0100 dispara a inferência. No modo de escrita manual, acionado pelo KEY[3] e isolado do fluxo normal, é possível escrever diretamente em qualquer memória durante testes, sendo bloqueado automaticamente enquanto a inferência estiver em andamento. Um multiplexador de saída prioriza a escrita manual quando ativa, garantindo que os dois modos nunca conflitem.
+
+### Bloco de Memórias
+
+O bloco de memórias instancia cinco RAMs de porta única do tipo M10K, geradas pelo Quartus Prime 23.1 para a FPGA Cyclone V. Cada memória possui uma interface de escrita vinda da UC e uma interface de leitura vinda da FSM, com um multiplexador de endereços que prioriza a escrita quando o sinal de write enable está ativo.
+A MEM_IMG armazena 784 posições de 16 bits representando os pixels da imagem de entrada, inicializada com o arquivo 2.mif. A MEM_WIN armazena 100.352 posições de 16 bits com os pesos W_in em Q4.12, inicializada com W_in_q.mif. A MEM_BIAS armazena 128 posições de 16 bits com os valores de bias em Q4.12, inicializada com b_q.mif. A MEM_BETA armazena 1.280 posições de 16 bits com os pesos β em Q4.12, inicializada com beta_q.mif. A MEM_H armazena 128 posições de 16 bits com as saídas da camada oculta, sendo escrita pela FSM durante a inferência e lida na camada de saída.
+
+### Unidade MAC
+
+A unidade MAC recebe como entradas os sinais de controle enable, clear_acc, add_bias e use_h, além dos dados pixel, peso, h_in, beta e bias. Como saída, produz o acumulador de 34 bits em Q4.12. Ela opera em dois modos selecionados pelo sinal use_h: no modo camada oculta, multiplica um pixel de 8 bits não-sinalizado pelo peso W_in de 16 bits sinalizado em Q4.12, produzindo um produto de 24 bits; no modo camada de saída, multiplica h de 16 bits sinalizado pelo peso β de 16 bits sinalizado, produzindo um produto de 32 bits. Em ambos os casos o resultado é estendido em sinal e acumulado nos 34 bits do registrador. O sinal add_bias soma o bias diretamente ao acumulador ao final do cálculo de cada neurônio, e o sinal clear_acc zera o acumulador antes de iniciar um novo neurônio ou dígito.
+
+### Função de Ativação (tanh aproximada)
+
+A função de ativação recebe como entrada os bits [27:12] do acumulador MAC, correspondendo à parte inteira e fracionária do resultado em Q4.12, e produz como saída o valor tanh aproximado em Q4.12 no intervalo de -1 a +1. A implementação utiliza 20 segmentos lineares cobrindo o intervalo de -8,0 a +8,0, explorando a simetria tanh(-x) = -tanh(x) para operar sempre sobre o valor absoluto da entrada e aplicar o sinal ao final. Para cada segmento, são definidos um breakpoint x0, um valor y0 e uma inclinação slope, e o resultado é calculado como y = y0 + (x - x0) × slope >> 12. Valores com |x| ≥ 4,5 são saturados diretamente em ±4095 (≈ ±1 em Q4.12).
+
+### Interface com a Placa (top_de1soc)
+
+O módulo top_de1soc realiza a interface entre o acelerador ELM e os periféricos da placa DE1-SoC. Ele implementa detecção de borda para os quatro botões KEY, garantindo que cada pressionamento gere um pulso de exatamente um ciclo de clock. O KEY[0] realiza o reset geral do sistema, o KEY[1] envia uma instrução pelo fluxo normal, o KEY[2] captura e exibe o estado atual nos displays, e o KEY[3] aciona a escrita manual nas memórias.
+A instrução enviada pelo KEY[1] é montada a partir das chaves SW, onde SW[3:0] define o opcode e SW[9:4] define o endereço parcial. Os displays HEX0 a HEX4 exibem o estado do sistema em texto — rEAdY, bUSY, donE ou Erro — capturado no momento do pressionamento do KEY[2]. O display HEX5 exibe o dígito predito após a primeira inferência concluída, permanecendo apagado até que o sistema atinja o estado DONE pela primeira vez. Os LEDs LEDR[0], LEDR[1] e LEDR[2] indicam respectivamente se a imagem, os pesos e o bias foram carregados, enquanto LEDR[6] a LEDR[9] refletem o estado atual do sistema.
