@@ -63,6 +63,8 @@ O argmax é a operação final da inferência, responsável por identificar o í
 O acelerador ELM (elm_accel) é organizado em uma hierarquia de módulos interconectados por barramentos de fios agrupados em três categorias: fios de escrita, que partem da unidade de controle em direção às memórias; fios de leitura, que partem da FSM em direção às memórias; e fios de controle, que conectam a FSM às unidades de processamento MAC e Ativação. Essa separação garante que escrita e leitura nas memórias nunca ocorram simultaneamente, evitando conflitos de acesso.
 O fluxo de operação do sistema segue três fases distintas. Na primeira fase, a UC recebe as instruções de carregamento e escreve os dados nas memórias correspondentes, ativando as flags de controle conforme cada memória é preenchida. Na segunda fase, após o recebimento da instrução START com todas as flags ativas, a FSM assume o controle e executa sequencialmente os cálculos das duas camadas da rede neural. Na terceira fase, o resultado da inferência é disponibilizado no registrador pred e exibido no display HEX5 da placa.
 
+![Datapath]([(https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/3f51747464a908c20d40063b6e8e0150cdb719aa/docs/diagramas_datapath_fsm.pdf)])
+
 ### Unidade de Controle (UC)
 
 A UC recebe como entrada as instruções de 32 bits no formato ISA, o sinal instr_valid indicando que uma instrução está disponível, e os sinais infer_done e infer_busy vindos da FSM. Como saída, gera os sinais de escrita para cada memória (endereço, dado e enable de escrita), as flags img_ready, w_ready e b_ready, o sinal start_infer para disparar a FSM, e o status atual do sistema.
