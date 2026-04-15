@@ -97,13 +97,13 @@ Antes de operar o sistema na placa, é necessário abrir o In-System Memory Cont
 Após carregar a imagem, o sistema já está pronto para operar. Ao ligar a placa, o sistema inicia no estado rEAdY, exibido nos displays de sete segmentos HEX0 a HEX4. Os LEDs LEDR[0], LEDR[1] e LEDR[2] indicam respectivamente se a imagem, os pesos e o bias estão carregados nas memórias.
 
 Os botões e chaves operam da seguinte forma:
--KEY[0] — Reset geral do sistema, retornando ao estado READY
--KEY[1] — Envia a instrução montada pelas chaves SW pelo fluxo normal
--KEY[2] — Captura e exibe o estado atual do sistema nos displays HEX0 a HEX4
--KEY[3] — Grava na memória usando a instrução de escrita manual
+- KEY[0] — Reset geral do sistema, retornando ao estado READY
+- KEY[1] — Envia a instrução montada pelas chaves SW pelo fluxo normal
+- KEY[2] — Captura e exibe o estado atual do sistema nos displays HEX0 a HEX4
+- KEY[3] — Grava na memória usando a instrução de escrita manual
 
 As chaves SW controlam as instruções enviadas:
--SW[3:0] — Define o opcode da instrução (0001 = STORE_IMG, 0010 = STORE_WEIGHTS, 0011 = STORE_BIAS, 0100 = START)
+- SW[3:0] — Define o opcode da instrução (0001 = STORE_IMG, 0010 = STORE_WEIGHTS, 0011 = STORE_BIAS, 0100 = START)
 
 
 Para iniciar a inferência, configure SW[3:0] = 0100 e pressione KEY[1]. O display passará a mostrar bUSY durante o processamento e donE ao término, exibindo o dígito predito no display HEX5.
@@ -112,9 +112,9 @@ Para iniciar a inferência, configure SW[3:0] = 0100 e pressione KEY[1]. O displ
 
 O sistema possui um mecanismo de escrita manual nas memórias acionado pelo KEY[3], projetado para permitir testes e para servir de base para a integração com o processador ARM nos próximos marcos. Nesse modo, a instrução é montada a partir das chaves SW da seguinte forma:
 
--SW[3:0] — Define o opcode 
--SW[6:4] — Define os 3 bits de endereço
--SW[9:7] — Define os 3 bits do dado a ser escrito
+- SW[3:0] — Define o opcode 
+- SW[6:4] — Define os 3 bits de endereço
+- SW[9:7] — Define os 3 bits do dado a ser escrito
 
 Ao pressionar KEY[3], a instrução montada é enviada para a UC pelo barramento de escrita manual, que é completamente separado do fluxo normal. Essa escrita é bloqueada automaticamente enquanto a inferência estiver em andamento, evitando corrupção dos dados nas memórias. Esse mecanismo representa o embrião da interface MMIO que será utilizada pelo driver Linux no próximo marco, onde o processador ARM poderá escrever diretamente nas memórias do co-processador via mapeamento de memória.
 
