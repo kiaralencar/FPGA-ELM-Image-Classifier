@@ -5,15 +5,15 @@
 //   SW[3:0] = opcode (4 bits)
 //   SW[9:4] = endereco parcial (6 bits, completado com zeros para 12 bits)
 //   KEY[0]  = reset
-//   KEY[1]  = envia instrucao (instr_valid)
-//   KEY[2]  = captura e exibe status nos displays
+//   KEY[1]  = envia instrucao (instr_valid) — todas as instrucoes
+//   KEY[3]  = escrita manual na memoria (demo)
 //
-// Instrucoes:
-//   SW[3:0]=0001 + KEY[1] → STORE_IMG     → LEDR[0] acende
-//   SW[3:0]=0010 + KEY[1] → STORE_WEIGHTS → LEDR[1] acende
-//   SW[3:0]=0011 + KEY[1] → STORE_BIAS    → LEDR[2] acende
-//   SW[3:0]=0100 + KEY[1] → START         → inferencia comeca
-//   SW[3:0]=0101 + KEY[2] → STATUS        → display mostra estado
+// Instrucoes (KEY[1]):
+//   SW[3:0]=0001 → STORE_IMG     → LEDR[0] acende
+//   SW[3:0]=0010 → STORE_WEIGHTS → LEDR[1] acende
+//   SW[3:0]=0011 → STORE_BIAS    → LEDR[2] acende
+//   SW[3:0]=0100 → START         → inferencia comeca
+//   SW[3:0]=0101 → STATUS        → display mostra estado atual
 //
 // LEDs:
 //   LEDR[0] = img_ready
@@ -26,7 +26,7 @@
 //
 // Displays:
 //   HEX5        = pred (0..9), apagado ate ter resultado
-//   HEX4..HEX0  = estado (capturado pelo KEY[2]):
+//   HEX4..HEX0  = estado (capturado pelo STATUS via KEY[1]):
 //     READY: HEX4=r HEX3=E HEX2=A HEX1=d HEX0=Y
 //     BUSY:  HEX4=apag HEX3=b HEX2=U HEX1=S HEX0=Y
 //     DONE:  HEX4=apag HEX3=d HEX2=o HEX1=n HEX0=E
@@ -51,28 +51,24 @@ module top_de1soc (
 // ============================================================
 wire reset    = ~KEY[0];
 wire btn_send = ~KEY[1];
-wire btn_stat = ~KEY[2];
 wire btn_mem  = ~KEY[3];
 
 // ============================================================
 // Deteccao de borda dos botoes
 // ============================================================
-reg btn_send_prev, btn_stat_prev, btn_mem_prev; 
+reg btn_send_prev, btn_mem_prev;
 always @(posedge CLOCK_50 or posedge reset) begin
     if (reset) begin
         btn_send_prev <= 1'b0;
-        btn_stat_prev <= 1'b0;
-		  btn_mem_prev  <= 1'b0; 
+        btn_mem_prev  <= 1'b0;
     end else begin
         btn_send_prev <= btn_send;
-        btn_stat_prev <= btn_stat;
-		  btn_mem_prev  <= btn_mem; 
+        btn_mem_prev  <= btn_mem;
     end
 end
 
 wire btn_send_pulse = btn_send & ~btn_send_prev;
-wire btn_stat_pulse = btn_stat & ~btn_stat_prev;
-wire btn_mem_pulse  = btn_mem  & ~btn_mem_prev; 
+wire btn_mem_pulse  = btn_mem  & ~btn_mem_prev;
 
 // ============================================================
 // Monta instrucao de 32 bits:
@@ -92,13 +88,11 @@ end
 
 // ============================================================
 // Instrucao de escrita manual (KEY[3]):
-//   [31:28] = opcode  = SW[3:0]  (1=img, 2=win, 3=bias, etc.)
+//   [31:28] = opcode  = SW[3:0]
 //   [14:12] = endereco = SW[6:4] (3 bits, zero-extendido)
 //   [11:9]  = valor    = SW[9:7] (3 bits, zero-extendido)
-//   bit [28] setado para sinalizar modo "mem_write"
 // ============================================================
 wire [31:0] mem_write_instr = {SW[3:0], 2'b0, {7'b0, SW[6:4]}, 8'b0, {5'b0, SW[9:7]}};
-// Reutilizamos o mesmo formato, mas num sinal separado
 
 reg mem_write_valid;
 always @(posedge CLOCK_50 or posedge reset) begin
@@ -122,18 +116,18 @@ wire [31:0] cycles;
 // Instancia elm_accel
 // ============================================================
 elm_accel u_elm (
-    .clk         (CLOCK_50),
-    .reset       (reset),
-    .instruction (instruction),
-    .instr_valid (instr_valid),
-	 .mem_write_instr  (mem_write_instr),
-    .mem_write_valid  (mem_write_valid),  
-    .status      (status),
-    .pred        (pred),
-    .img_ready   (img_ready),
-    .w_ready     (w_ready),
-    .b_ready     (b_ready),
-    .cycles      (cycles)
+    .clk              (CLOCK_50),
+    .reset            (reset),
+    .instruction      (instruction),
+    .instr_valid      (instr_valid),
+    .mem_write_instr  (mem_write_instr),
+    .mem_write_valid  (mem_write_valid),
+    .status           (status),
+    .pred             (pred),
+    .img_ready        (img_ready),
+    .w_ready          (w_ready),
+    .b_ready          (b_ready),
+    .cycles           (cycles)
 );
 
 // ============================================================
@@ -148,7 +142,8 @@ always @(posedge CLOCK_50 or posedge reset) begin
 end
 
 // ============================================================
-// Registrador de estado para display (capturado pelo KEY[2])
+// Registrador de estado para display
+// Capturado ao enviar instrucao STATUS (SW[3:0]=0101 + KEY[1])
 // ============================================================
 reg [1:0] display_state;
 reg       display_valid;
@@ -157,7 +152,7 @@ always @(posedge CLOCK_50 or posedge reset) begin
         display_state <= 2'b00;
         display_valid <= 1'b0;
     end
-    else if (btn_stat_pulse) begin
+    else if (btn_send_pulse && SW[3:0] == 4'b0101) begin
         display_state <= status;
         display_valid <= 1'b1;
     end
