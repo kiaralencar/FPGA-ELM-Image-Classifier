@@ -1,5 +1,42 @@
 # FPGA-ELM-Image-Classifier
 
+## Sumário
+
+- [Introdução e Definição do Problema](#introdução-e-definição-do-problema)
+- [Requisitos Principais](#requisitos-principais)
+  - [Entrada e Saída](#entrada-e-saída)
+  - [Co-processador](#co-processador)
+  - [Sistema de Memórias](#sistema-de-memórias)
+  - [Conjunto de Instruções (ISA)](#conjunto-de-instruções-isa)
+  - [Interface com a Placa](#interface-com-a-placa)
+- [Fundamentação Teórica](#fundamentação-teórica)
+  - [Representação Digital da Imagem](#representação-digital-da-imagem)
+  - [Representação em Ponto Fixo (Q4.12)](#representação-em-ponto-fixo-q412)
+  - [Extreme Learning Machine (ELM)](#extreme-learning-machine-elm)
+  - [Operação MAC (Multiply-Accumulate)](#operação-mac-multiply-accumulate)
+  - [Máquina de Estados Finita (FSM)](#máquina-de-estados-finita-fsm)
+  - [Argmax](#argmax)
+- [Descrição da Solução](#descrição-da-solução)
+  - [Arquitetura Geral do Co-processador](#arquitetura-geral-do-co-processador)
+  - [Unidade de Controle (UC)](#unidade-de-controle-uc)
+  - [Bloco de Memórias](#bloco-de-memórias)
+  - [Unidade MAC](#unidade-mac)
+  - [Função de Ativação (tanh aproximada)](#função-de-ativação-tanh-aproximada)
+  - [Interface com a Placa (top_de1soc)](#interface-com-a-placa-top_de1soc)
+- [Modo de Uso](#modo-de-uso)
+  - [Configuração Inicial no Quartus Prime](#configuração-inicial-no-quartus-prime)
+  - [Operação na Placa](#operação-na-placa)
+  - [Escrita Manual nas Memórias](#escrita-manual-nas-memórias)
+- [Evolução dos Módulos](#evolução-dos-módulos)
+- [Testes e Validação](#testes-e-validação)
+  - [Metodologia de Testes](#metodologia-de-testes)
+  - [Testes Funcionais](#testes-funcionais)
+  - [Problemas Encontrados e Correções](#problemas-encontrados-e-correções)
+  - [Validação Final](#validação-final)
+  - [Uso de Recursos](#uso-de-recursos)
+- [Conclusão](#conclusão)
+- [Referências](#referências)
+
 ## Introdução e Definição do Problema
 
 Este relatório descreve o desenvolvimento da primeira etapa de um sistema embarcado voltado para a classificação de imagens de dígitos numéricos. O sistema completo será implementado em um SoC (System on Chip) heterogêneo, composto por um processador ARM integrado a uma FPGA, e será construído ao longo de três marcos de desenvolvimento.
@@ -187,7 +224,6 @@ Outro problema identificado foi a leitura incorreta de dados das memórias, caus
 
 Também foi observado comportamento incorreto no acumulador da MAC quando o sinal de limpeza (clear_acc) não era acionado corretamente entre os neurônios. Isso fazia com que valores de execuções anteriores fossem acumulados, gerando resultados incorretos. A solução foi garantir que a FSM sempre ativasse o sinal clear_acc antes do início do cálculo de um novo neurônio.
 
----
 
 ### Validação Final
 
