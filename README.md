@@ -167,8 +167,6 @@ Inicialmente, foram verificados os sinais de controle e o fluxo de execução ut
 
 A validação foi feita observando o comportamento do sistema durante a execução, verificando se as transições de estado ocorriam corretamente, se os dados eram lidos das memórias de forma adequada e se o valor predito final correspondia ao esperado.
 
----
-
 ### Testes Funcionais
 
 Os testes funcionais foram realizados para garantir o correto funcionamento de cada etapa do sistema.
@@ -178,8 +176,6 @@ Inicialmente, foi validado o processo de carregamento dos dados, verificando se 
 Em seguida, foi testado o disparo da inferência por meio da instrução START, garantindo que o sistema só iniciasse o processamento quando todas as flags estivessem ativas. Durante a execução, foi possível observar a mudança do estado READY para BUSY e, posteriormente, para DONE.
 
 Também foi validado o funcionamento da FSM ao longo dos estados de execução, verificando se os ciclos de leitura, cálculo na unidade MAC e armazenamento dos resultados ocorriam corretamente. Por fim, foi verificada a exibição do resultado final no display HEX5, confirmando a correta execução da operação de argmax.
-
----
 
 ### Problemas Encontrados e Correções
 
@@ -224,3 +220,18 @@ Apesar dos resultados obtidos, alguns pontos de melhoria foram identificados dur
 Outro ponto importante é a limitação da interface atual, que depende exclusivamente de botões da placa para envio de instruções. Essa abordagem dificulta a integração com o processador ARM presente no SoC. Como evolução do projeto, seria ideal implementar uma interface baseada em mapeamento de memória (MMIO), permitindo que o processador controle o co-processador diretamente por meio de leitura e escrita em registradores, eliminando a dependência de interação manual.
 
 Por fim, melhorias na organização da arquitetura de controle também poderiam ser exploradas, como uma separação mais clara entre os estados de carregamento e inferência, garantindo maior flexibilidade e escalabilidade para futuras expansões do sistema.
+
+## Referências
+
+PATTERSON, David A.; HENNESSY, John L. **Computer Organization and Design: The Hardware/Software Interface, ARM Edition**. Amsterdam: Morgan Kaufmann, 2017.
+
+HUANG, Guang-Bin; ZHU, Qin-Yu; SIEW, Chee-Kheong. Extreme Learning Machine: Theory and Applications. **Neurocomputing**, v. 70, n. 1-3, p. 489-501, 2006.
+
+INTEL. **Cyclone V Device Overview**. Disponível em: https://www.intel.com/content/www/us/en/docs/programmable/683694/current/cyclone-v-device-overview.html
+
+TECHNOLOGIES, Terasic. **DE1-SoC Board**. Disponível em: https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=836
+
+INTEL. **Quartus Prime Pro Edition User Guide**. Disponível em: https://www.intel.com/content/www/us/en/docs/programmable/683846/current/overview.html
+
+MERRICK, Russell. **Getting Started with FPGAs**. San Francisco: No Starch Press, 2024.
+
