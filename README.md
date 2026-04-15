@@ -23,6 +23,8 @@ O sistema utiliza cinco blocos de memória M10K da FPGA Cyclone V: MEM_IMG para 
 
 O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando BUSY, DONE ou ERROR.
 
+![Formato ISA](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/formato_ISA%20(1)-1.png?raw=true)
+
 ### Interface com a Placa
 
 A interface com a placa DE1-SoC foi implementada no módulo top_de1soc, utilizando os botões KEY, chaves SW e displays de sete segmentos. O KEY[0] realiza o reset do sistema, o KEY[1] envia instruções pelo fluxo normal, o KEY[2] captura e exibe o estado nos displays, e o KEY[3] permite escrita manual nas memórias. Os displays HEX0 a HEX4 exibem o estado atual do sistema em texto (READY, BUSY, DONE, ERROR) e o HEX5 exibe o dígito predito. Os LEDs indicam o estado das flags img_ready, w_ready e b_ready, além do status geral do processamento.
@@ -52,6 +54,8 @@ A operação MAC é o núcleo computacional da rede neural, realizando sucessiva
 
 A FSM é o componente responsável por coordenar e sequenciar todas as operações do co-processador. A FSM de inferência percorre 12 estados: READY, MAC_H, MAC_H_W, MAC_H_LAST, ACTIV, SAVE_H, MAC_Y, MAC_Y_W, MAC_Y_LAST, SAVE_Y, DO_ARGMAX e DONE. Os estados intermediários de espera MAC_H_W e MAC_Y_W foram introduzidos para lidar com a latência de leitura das BRAMs, garantindo que os dados estejam disponíveis no momento correto para a operação MAC. Há ainda um estado WAIT que mantém o resultado visível nos displays por 3 segundos antes de retornar ao estado READY.
 
+![Fluxograma FSM](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Fluxograma%20FSM%20da%20Inferencia-1.png?raw=true)
+
 ### Argmax
 
 O argmax é a operação final da inferência, responsável por identificar o índice do maior valor entre os 10 resultados da camada de saída, correspondendo ao dígito previsto. No projeto, o argmax foi implementado de forma combinacional diretamente dentro da FSM, operando sobre um banco de 10 registradores internos y_reg[0..9] ao invés de uma memória externa, o que simplifica o circuito e reduz a latência desta etapa
@@ -63,12 +67,14 @@ O argmax é a operação final da inferência, responsável por identificar o í
 O acelerador ELM (elm_accel) é organizado em uma hierarquia de módulos interconectados por barramentos de fios agrupados em três categorias: fios de escrita, que partem da unidade de controle em direção às memórias; fios de leitura, que partem da FSM em direção às memórias; e fios de controle, que conectam a FSM às unidades de processamento MAC e Ativação. Essa separação garante que escrita e leitura nas memórias nunca ocorram simultaneamente, evitando conflitos de acesso.
 O fluxo de operação do sistema segue três fases distintas. Na primeira fase, a UC recebe as instruções de carregamento e escreve os dados nas memórias correspondentes, ativando as flags de controle conforme cada memória é preenchida. Na segunda fase, após o recebimento da instrução START com todas as flags ativas, a FSM assume o controle e executa sequencialmente os cálculos das duas camadas da rede neural. Na terceira fase, o resultado da inferência é disponibilizado no registrador pred e exibido no display HEX5 da placa.
 
-![Datapath]([(https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/3f51747464a908c20d40063b6e8e0150cdb719aa/docs/diagramas_datapath_fsm.pdf)])
+![Datapath e FSM](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/diagramas_datapath_fsm.png?raw=true)
 
 ### Unidade de Controle (UC)
 
 A UC recebe como entrada as instruções de 32 bits no formato ISA, o sinal instr_valid indicando que uma instrução está disponível, e os sinais infer_done e infer_busy vindos da FSM. Como saída, gera os sinais de escrita para cada memória (endereço, dado e enable de escrita), as flags img_ready, w_ready e b_ready, o sinal start_infer para disparar a FSM, e o status atual do sistema.
 A UC opera em dois modos independentes. No fluxo normal, acionado pelo KEY[1], ela decodifica o opcode nos bits [31:28] da instrução e direciona o dado para a memória correta: opcode 0001 escreve na MEM_IMG, opcode 0010 escreve na MEM_WIN, opcode 0011 escreve na MEM_BIAS, e opcode 0100 dispara a inferência. No modo de escrita manual, acionado pelo KEY[3] e isolado do fluxo normal, é possível escrever diretamente em qualquer memória durante testes, sendo bloqueado automaticamente enquanto a inferência estiver em andamento. Um multiplexador de saída prioriza a escrita manual quando ativa, garantindo que os dois modos nunca conflitem.
+
+![Fluxo de Dados](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/fluxo_de_dados-1.png?raw=true)
 
 ### Bloco de Memórias
 
@@ -197,7 +203,8 @@ Dessa forma, foi possível validar o funcionamento completo do co-processador, d
 
 O relatório de síntese gerado pelo Quartus Prime 23.1 apresenta o seguinte consumo de recursos da FPGA Cyclone V (DE1-SoC) após a implementação completa do sistema:
 
-img
+![Logic Utilization](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Logica%20utilization.png?raw=true)
+![Dedicated Logic Registers](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Dedicated.png?raw=true)
 
 O uso de ALMs e registradores é bastante reduzido, representando apenas 4% e 2% do dispositivo respectivamente, o que demonstra que a lógica de controle e o datapath do co-processador são eficientes em termos de área.
 Os 5 DSP Blocks correspondem aos multiplicadores utilizados pela unidade MAC, que realiza as operações de multiplicação entre pixels e pesos na camada oculta, e entre os valores h e os pesos β na camada de saída.
