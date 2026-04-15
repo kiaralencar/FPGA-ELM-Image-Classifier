@@ -118,15 +118,81 @@ O sistema possui um mecanismo de escrita manual nas memórias acionado pelo KEY[
 
 Ao pressionar KEY[3], a instrução montada é enviada para a UC pelo barramento de escrita manual, que é completamente separado do fluxo normal. Essa escrita é bloqueada automaticamente enquanto a inferência estiver em andamento, evitando corrupção dos dados nas memórias. Esse mecanismo representa o embrião da interface MMIO que será utilizada pelo driver Linux no próximo marco, onde o processador ARM poderá escrever diretamente nas memórias do co-processador via mapeamento de memória.
 
-## Explicação dos Testes
+## Evolução dos Módulos
 
-#### Evolução do Projeto
+#### fsm_infer.v
+A versão inicial da FSM possuía apenas 8 estados simples: READY, MAC_H, ACTIV, SAVE_H, MAC_Y, SAVE_Y, DO_ARG e DONE. Nessa versão, a FSM avançava diretamente de MAC_H para ACTIV sem aguardar a latência da BRAM, o que causava leitura de dados incorretos nas memórias.
+A versão final expandiu para 13 estados, adicionando os estados intermediários MAC_H_W e MAC_H_LAST para a camada oculta, e MAC_Y_W e MAC_Y_LAST para a camada de saída. Esses estados de espera foram introduzidos especificamente para absorver a latência de leitura das BRAMs M10K, garantindo que os dados estejam estáveis antes de serem consumidos pela MAC. Além disso, foi adicionado o estado WAIT, que mantém o resultado visível nos displays por 3 segundos antes de retornar ao READY.
+Outra mudança importante foi a remoção da MEM_Y como memória externa — os resultados da camada de saída passaram a ser armazenados em um banco de 10 registradores internos y_reg[0..9], e o argmax passou a ser implementado de forma combinacional diretamente dentro da FSM, eliminando a dependência do módulo externo argmax.v.
 
-O desenvolvimento do co-processador seguiu uma linha de evolução gradual, partindo de um modelo simples e sendo refinado ao longo das sessões de trabalho em equipe.
-O ponto de partida foi a criação de um primeiro protótipo da máquina de estados, com um fluxo básico e sequencial contendo os estados IDLE, LOAD_INPUT, MAC_HIDDEN, ADD_BIAS, ACTIVATION, OUTPUT_LAYER, STORE_OUTPUT, ARGMAX e DONE. Esse modelo inicial serviu para validar a lógica geral do fluxo de inferência e entender como as operações deveriam se encadear.
-...
+### mac.v
+A versão inicial da MAC operava apenas no modo camada oculta, multiplicando pixels de 8 bits pelos pesos W_in de 16 bits. O produto era de 24 bits e acumulado em 34 bits.
+A versão final adicionou o modo camada de saída, controlado pelo novo sinal use_h. Quando use_h = 1, a MAC multiplica os valores h de 16 bits pelos pesos β de 16 bits, gerando um produto de 32 bits com precisão completa. Isso permitiu reutilizar a mesma unidade MAC nas duas camadas da rede, reduzindo o uso de recursos de hardware.
+
+### uc.v
+
+A versão inicial da UC possuía apenas um barramento de instruções, decodificando os opcodes STORE_IMG, STORE_WEIGHTS, STORE_BIAS, START e STATUS pelo sinal instr_valid. As flags img_ready, w_ready e b_ready eram verificadas internamente antes de disparar a inferência.
+A versão final adicionou um segundo barramento completamente independente, o mem_write_instr, acionado pelo sinal mem_write_valid e pelo KEY[3] da placa. Esse modo de escrita manual permite escrever diretamente em qualquer memória durante os testes, sendo bloqueado automaticamente quando a inferência está em andamento via sinal infer_busy. Um multiplexador de saída foi adicionado para priorizar a escrita manual quando ativa, garantindo que os dois modos nunca conflitem.
+
+### mem_block.v
+
+A versão inicial do bloco de memórias utilizava arrays Verilog simples com $readmemh para inicialização, sem instanciar módulos de BRAM dedicados. Essa abordagem funcionava em simulação mas não gerava BRAMs M10K reais na síntese do Quartus.
+A versão final substituiu todos os arrays por instâncias dos módulos ram_img, ram_win, ram_bias, ram_beta e ram_h, gerados pelo wizard do Quartus Prime como RAMs de porta única do tipo M10K, inicializadas via arquivos .mif. Essa mudança foi fundamental para que os pesos da rede fossem corretamente armazenados nas BRAMs da FPGA Cyclone V, garantindo o funcionamento real do sistema na placa.
+
+### activation.v
+
+A versão inicial implementava uma aproximação simples da sigmoid dividida em apenas 4 regiões lineares, com breakpoints em 1.0, 2.5 e 4.5 em Q4.12.
+A versão final substituiu a sigmoid pela função tanh, muito mais adequada para redes ELM, com uma aproximação por 20 segmentos lineares cobrindo o intervalo de -8.0 a +8.0 em Q4.12. A precisão aumentou significativamente com a adição de 13 breakpoints e slopes calculados para cada segmento, e a saturação passou a ser aplicada em ±4095 (≈ ±1 em Q4.12).
+
+### top_de1soc.v
+
+A versão inicial era bastante simples, com apenas um display HEX0 mostrando o pred e 3 LEDs de status. O reset era direto, sem detecção de borda nos botões.
+A versão final expandiu significativamente a interface, adicionando detecção de borda para todos os 4 botões KEY, 6 displays de sete segmentos exibindo o estado em texto e o dígito predito, 10 LEDs com informações detalhadas de status e flags, e suporte ao segundo barramento de escrita manual pelo KEY[3].
+
+## Testes e Validação
+
+### Metodologia de Testes
+
+Os testes do sistema foram realizados em duas etapas principais: validação funcional dos módulos e testes diretos em hardware na placa DE1-SoC.
+
+Inicialmente, foram verificados os sinais de controle e o fluxo de execução utilizando os LEDs e displays da placa, permitindo acompanhar o estado do sistema em tempo real. Em seguida, foram realizados testes completos de inferência, envolvendo o carregamento da imagem, ativação das flags e execução da FSM até a obtenção do resultado final.
+
+A validação foi feita observando o comportamento do sistema durante a execução, verificando se as transições de estado ocorriam corretamente, se os dados eram lidos das memórias de forma adequada e se o valor predito final correspondia ao esperado.
+
+---
+
+### Testes Funcionais
+
+Os testes funcionais foram realizados para garantir o correto funcionamento de cada etapa do sistema.
+
+Inicialmente, foi validado o processo de carregamento dos dados, verificando se as memórias MEM_IMG, MEM_WIN e MEM_BIAS eram corretamente escritas e se as flags img_ready, w_ready e b_ready eram ativadas após a conclusão da escrita.
+
+Em seguida, foi testado o disparo da inferência por meio da instrução START, garantindo que o sistema só iniciasse o processamento quando todas as flags estivessem ativas. Durante a execução, foi possível observar a mudança do estado READY para BUSY e, posteriormente, para DONE.
+
+Também foi validado o funcionamento da FSM ao longo dos estados de execução, verificando se os ciclos de leitura, cálculo na unidade MAC e armazenamento dos resultados ocorriam corretamente. Por fim, foi verificada a exibição do resultado final no display HEX5, confirmando a correta execução da operação de argmax.
+
+---
+
+### Problemas Encontrados e Correções
+
+Durante a fase de testes, alguns problemas foram identificados e corrigidos ao longo do desenvolvimento.
+
+Inicialmente, foi observado que a saída da unidade MAC permanecia constantemente em zero, mesmo com os dados corretamente carregados nas memórias. Esse comportamento indicava que a operação de multiplicação e acumulação não estava sendo executada corretamente. Após análise, verificou-se que o sinal de controle MAC enable não estava sendo ativado nos momentos corretos pela FSM, impedindo a realização dos cálculos. A correção foi realizada ajustando a lógica de controle da FSM para garantir que o sinal MAC enable fosse ativado durante os ciclos de processamento.
+
+Outro problema identificado foi a leitura incorreta de dados das memórias, causada pela não consideração da latência das BRAMs M10K. Como consequência, valores inválidos eram utilizados nas operações. Esse problema foi resolvido com a introdução de estados intermediários de espera, como MAC_H_W e MAC_Y_W, garantindo que os dados estivessem estáveis antes de serem utilizados pela unidade MAC.
+
+Também foi observado comportamento incorreto no acumulador da MAC quando o sinal de limpeza (clear_acc) não era acionado corretamente entre os neurônios. Isso fazia com que valores de execuções anteriores fossem acumulados, gerando resultados incorretos. A solução foi garantir que a FSM sempre ativasse o sinal clear_acc antes do início do cálculo de um novo neurônio.
+
+---
+
+### Validação Final
+
+Após a correção dos problemas identificados, o sistema passou a apresentar comportamento estável e consistente. A inferência é iniciada corretamente apenas quando todas as condições são satisfeitas, os dados são processados conforme esperado e o resultado final é exibido corretamente nos displays da placa.
+
+Dessa forma, foi possível validar o funcionamento completo do co-processador, desde o carregamento dos dados até a obtenção da predição final. 
 
 ### Uso de Recursos
+
 O relatório de síntese gerado pelo Quartus Prime 23.1 apresenta o seguinte consumo de recursos da FPGA Cyclone V (DE1-SoC) após a implementação completa do sistema:
 
 img
