@@ -118,8 +118,12 @@ O sistema possui um mecanismo de escrita manual nas memórias acionado pelo KEY[
 
 Ao pressionar KEY[3], a instrução montada é enviada para a UC pelo barramento de escrita manual, que é completamente separado do fluxo normal. Essa escrita é bloqueada automaticamente enquanto a inferência estiver em andamento, evitando corrupção dos dados nas memórias. Esse mecanismo representa o embrião da interface MMIO que será utilizada pelo driver Linux no próximo marco, onde o processador ARM poderá escrever diretamente nas memórias do co-processador via mapeamento de memória.
 
-### Explicação dos Testes
+## Explicação dos Testes
 
+#### Evolução do Projeto
+
+O desenvolvimento do co-processador seguiu uma linha de evolução gradual, partindo de um modelo simples e sendo refinado ao longo das sessões de trabalho em equipe.
+O ponto de partida foi a criação de um primeiro protótipo da máquina de estados, com um fluxo básico e sequencial contendo os estados IDLE, LOAD_INPUT, MAC_HIDDEN, ADD_BIAS, ACTIVATION, OUTPUT_LAYER, STORE_OUTPUT, ARGMAX e DONE. Esse modelo inicial serviu para validar a lógica geral do fluxo de inferência e entender como as operações deveriam se encadear.
 ...
 
 ### Uso de Recursos
