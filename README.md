@@ -58,7 +58,9 @@ O sistema utiliza cinco blocos de memória M10K da FPGA Cyclone V: MEM_IMG para 
 
 ### Conjunto de Instruções (ISA)
 
-O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando READY, BUSY, DONE ou ERROR.
+O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando READY, BUSY, DONE ou ERROR. A tabela a seguir detalha os registradores de interface do co-processador, com seus respectivos sinais, larguras e localizações no código.
+
+![Tabela de Registradores](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/tabela%20de%20registradores.webp?raw=true)
 
 ### Interface com a Placa
 
