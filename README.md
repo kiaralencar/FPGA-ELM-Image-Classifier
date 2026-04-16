@@ -50,7 +50,7 @@ O sistema recebe como entrada uma imagem em escala de cinza com resolução de 2
 
 ### Co-processador
 
-O núcleo classificador foi implementado em Verilog com arquitetura sequencial, contendo uma FSM de controle com 12 estados para gerenciar o fluxo de execução, uma unidade MAC dual-mode para as operações de multiplicação e acumulação das duas camadas da rede neural, uma função de ativação aproximada da tangente hiperbólica por 20 segmentos lineares em Q4.12, e um bloco argmax combinacional embutido diretamente na FSM para determinar o dígito com maior valor de saída. Os valores são representados em ponto fixo no formato Q4.12. 
+O núcleo classificador foi implementado em Verilog com arquitetura sequencial, contendo uma FSM de controle com 13 estados para gerenciar o fluxo de execução, uma unidade MAC dual-mode para as operações de multiplicação e acumulação das duas camadas da rede neural, uma função de ativação aproximada da tangente hiperbólica por 20 segmentos lineares em Q4.12, e um bloco argmax combinacional embutido diretamente na FSM para determinar o dígito com maior valor de saída. Os valores são representados em ponto fixo no formato Q4.12. 
 
 ### Sistema de Memórias
 
@@ -58,9 +58,7 @@ O sistema utiliza cinco blocos de memória M10K da FPGA Cyclone V: MEM_IMG para 
 
 ### Conjunto de Instruções (ISA)
 
-O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando BUSY, DONE ou ERROR.
-
-![Formato ISA](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/formato_ISA%20(1)-1.png?raw=true)
+O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando REALY, BUSY, DONE ou ERROR.
 
 ### Interface com a Placa
 
@@ -89,7 +87,8 @@ A operação MAC é o núcleo computacional da rede neural, realizando sucessiva
 
 ### Máquina de Estados Finita (FSM)
 
-A FSM é o componente responsável por coordenar e sequenciar todas as operações do co-processador. A FSM de inferência percorre 12 estados: READY, MAC_H, MAC_H_W, MAC_H_LAST, ACTIV, SAVE_H, MAC_Y, MAC_Y_W, MAC_Y_LAST, SAVE_Y, DO_ARGMAX e DONE. Os estados intermediários de espera MAC_H_W e MAC_Y_W foram introduzidos para lidar com a latência de leitura das BRAMs, garantindo que os dados estejam disponíveis no momento correto para a operação MAC. Há ainda um estado WAIT que mantém o resultado visível nos displays por 3 segundos antes de retornar ao estado READY.
+A FSM é o componente responsável por coordenar e sequenciar todas as operações do co-processador. A FSM de inferência percorre 13 estados: READY, MAC_H, MAC_H_W, MAC_H_LAST, ACTIV, SAVE_H, MAC_Y, MAC_Y_W, MAC_Y_LAST, SAVE_Y, DO_ARGMAX e DONE. Os estados intermediários de espera MAC_H_W e MAC_Y_W foram introduzidos para lidar com a latência de leitura das BRAMs, garantindo que os dados estejam disponíveis no momento correto para a operação MAC. Há ainda um estado WAIT que mantém o resultado visível nos displays por 3 segundos antes de retornar ao estado READY.
+A Figura 1 apresenta o fluxograma completo da FSM de inferência. É possível observar os 13 estados distribuídos entre as duas camadas de processamento, os estados intermediários de espera MAC_H_W e MAC_Y_W introduzidos para absorver a latência das BRAMs, e os contadores internos i, n e k que controlam os laços sobre os 784 pixels, 128 neurônios e 10 classes de saída respectivamente.
 
 ![Fluxograma FSM](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Fluxograma%20FSM%20da%20Inferencia-1.png?raw=true)
 
@@ -103,6 +102,7 @@ O argmax é a operação final da inferência, responsável por identificar o í
 
 O acelerador ELM (elm_accel) é organizado em uma hierarquia de módulos interconectados por barramentos de fios agrupados em três categorias: fios de escrita, que partem da unidade de controle em direção às memórias; fios de leitura, que partem da FSM em direção às memórias; e fios de controle, que conectam a FSM às unidades de processamento MAC e Ativação. Essa separação garante que escrita e leitura nas memórias nunca ocorram simultaneamente, evitando conflitos de acesso.
 O fluxo de operação do sistema segue três fases distintas. Na primeira fase, a UC recebe as instruções de carregamento e escreve os dados nas memórias correspondentes, ativando as flags de controle conforme cada memória é preenchida. Na segunda fase, após o recebimento da instrução START com todas as flags ativas, a FSM assume o controle e executa sequencialmente os cálculos das duas camadas da rede neural. Na terceira fase, o resultado da inferência é disponibilizado no registrador pred e exibido no display HEX5 da placa.
+A Figura 2 apresenta o diagrama geral da arquitetura do co-processador. Nele é possível visualizar as cinco memórias M10K, a unidade MAC dual-mode, a função de ativação e o bloco argmax, além dos três grupos de barramentos que os interligam: fios de escrita partindo da UC, fios de leitura partindo da FSM e fios de controle conectando a FSM às unidades de processamento.
 
 ![Datapath e FSM](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/diagramas_datapath_fsm.png?raw=true)
 
@@ -110,6 +110,7 @@ O fluxo de operação do sistema segue três fases distintas. Na primeira fase, 
 
 A UC recebe como entrada as instruções de 32 bits no formato ISA, o sinal instr_valid indicando que uma instrução está disponível, e os sinais infer_done e infer_busy vindos da FSM. Como saída, gera os sinais de escrita para cada memória (endereço, dado e enable de escrita), as flags img_ready, w_ready e b_ready, o sinal start_infer para disparar a FSM, e o status atual do sistema.
 A UC opera em dois modos independentes. No fluxo normal, acionado pelo KEY[1], ela decodifica o opcode nos bits [31:28] da instrução e direciona o dado para a memória correta: opcode 0001 escreve na MEM_IMG, opcode 0010 escreve na MEM_WIN, opcode 0011 escreve na MEM_BIAS, e opcode 0100 dispara a inferência. No modo de escrita manual, acionado pelo KEY[3] e isolado do fluxo normal, é possível escrever diretamente em qualquer memória durante testes, sendo bloqueado automaticamente enquanto a inferência estiver em andamento. Um multiplexador de saída prioriza a escrita manual quando ativa, garantindo que os dois modos nunca conflitem.
+A Figura 3 detalha o fluxo de dados do sistema. O diagrama cobre desde o recebimento das instruções LOAD_IMG, LOAD_WEIGHTS e LOAD_BIAS pela UC, passando pela ativação das flags img_ready, w_ready e b_ready, até o disparo da inferência pela instrução START e o retorno dos estados BUSY, DONE ou ERROR.
 
 ![Fluxo de Dados](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/fluxo_de_dados-1.png?raw=true)
 
@@ -251,7 +252,7 @@ Todos os requisitos propostos foram atendidos. O sistema realiza corretamente a 
 
 Ao longo do desenvolvimento, a equipe aprofundou seus conhecimentos em diversas áreas. A implementação do conjunto de instruções ISA trouxe uma compreensão prática de como um co-processador se comunica com o mundo externo. O estudo da rede neural ELM permitiu entender como algoritmos de aprendizado de máquina podem ser traduzidos para hardware. A representação em ponto fixo Q4.12, o uso de arquivos .mif para inicialização das memórias e a utilização das BRAMs M10K da FPGA foram aspectos que exigiram aprendizado específico e contribuíram para um entendimento mais profundo do funcionamento das memórias em hardware. O projeto também contribuiu para o aperfeiçoamento do conhecimento em Verilog, máquinas de estados finitas e na utilização dos recursos da placa DE1-SoC.
 
-Apesar dos resultados obtidos, alguns pontos de melhoria foram identificados durante o desenvolvimento do projeto.Um dos principais aspectos a ser aprimorado está relacionado ao fluxo de carregamento de dados. Atualmente, o sistema exige um reset completo para a execução de uma nova inferência, o que implica no recarregamento de todos os parâmetros da rede, incluindo pesos e bias. Em uma arquitetura mais eficiente, esses dados deveriam ser carregados apenas uma vez, permitindo que múltiplas inferências fossem realizadas apenas com a atualização da imagem de entrada. Essa melhoria reduziria o tempo de operação e tornaria o sistema mais próximo de aplicações reais.
+Apesar dos resultados obtidos, alguns pontos de melhoria foram identificados durante o desenvolvimento do projeto. Um dos principais aspectos a ser aprimorado está relacionado ao fluxo de carregamento de dados. Atualmente, o sistema exige um reset completo para a execução de uma nova inferência, o que implica no recarregamento de todos os parâmetros da rede, incluindo pesos e bias. Em uma arquitetura mais eficiente, esses dados deveriam ser carregados apenas uma vez, permitindo que múltiplas inferências fossem realizadas apenas com a atualização da imagem de entrada. Essa melhoria reduziria o tempo de operação e tornaria o sistema mais próximo de aplicações reais.
 
 Outro ponto importante é a limitação da interface atual, que depende exclusivamente de botões da placa para envio de instruções. Essa abordagem dificulta a integração com o processador ARM presente no SoC. Como evolução do projeto, seria ideal implementar uma interface baseada em mapeamento de memória (MMIO), permitindo que o processador controle o co-processador diretamente por meio de leitura e escrita em registradores, eliminando a dependência de interação manual.
 
