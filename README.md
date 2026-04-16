@@ -58,7 +58,7 @@ O sistema utiliza cinco blocos de memória M10K da FPGA Cyclone V: MEM_IMG para 
 
 ### Conjunto de Instruções (ISA)
 
-O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando REALY, BUSY, DONE ou ERROR.
+O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando READY, BUSY, DONE ou ERROR.
 
 ### Interface com a Placa
 
@@ -271,4 +271,6 @@ TECHNOLOGIES, Terasic. **DE1-SoC Board**. Disponível em: https://www.terasic.co
 INTEL. **Quartus Prime Pro Edition User Guide**. Disponível em: https://www.intel.com/content/www/us/en/docs/programmable/683846/current/overview.html
 
 MERRICK, Russell. **Getting Started with FPGAs**. San Francisco: No Starch Press, 2024.
+
+OLIVEIRA, Janaína da Glória Moreira de. **Uma arquitetura reconfigurável de Rede Neural Artificial utilizando FPGA**. 2017. Dissertação (Mestrado em Engenharia Elétrica) — Universidade Federal de Itajubá, Itajubá, 2017. Orientador: Robson Luiz Moreno. Coorientador: Odilon de Oliveira Dutra.
 
