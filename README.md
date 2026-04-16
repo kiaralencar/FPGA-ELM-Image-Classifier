@@ -1,5 +1,42 @@
 # FPGA-ELM-Image-Classifier
 
+## Sumário
+
+- [Introdução e Definição do Problema](#introdução-e-definição-do-problema)
+- [Requisitos Principais](#requisitos-principais)
+  - [Entrada e Saída](#entrada-e-saída)
+  - [Co-processador](#co-processador)
+  - [Sistema de Memórias](#sistema-de-memórias)
+  - [Conjunto de Instruções (ISA)](#conjunto-de-instruções-isa)
+  - [Interface com a Placa](#interface-com-a-placa)
+- [Fundamentação Teórica](#fundamentação-teórica)
+  - [Representação Digital da Imagem](#representação-digital-da-imagem)
+  - [Representação em Ponto Fixo (Q4.12)](#representação-em-ponto-fixo-q412)
+  - [Extreme Learning Machine (ELM)](#extreme-learning-machine-elm)
+  - [Operação MAC (Multiply-Accumulate)](#operação-mac-multiply-accumulate)
+  - [Máquina de Estados Finita (FSM)](#máquina-de-estados-finita-fsm)
+  - [Argmax](#argmax)
+- [Descrição da Solução](#descrição-da-solução)
+  - [Arquitetura Geral do Co-processador](#arquitetura-geral-do-co-processador)
+  - [Unidade de Controle (UC)](#unidade-de-controle-uc)
+  - [Bloco de Memórias](#bloco-de-memórias)
+  - [Unidade MAC](#unidade-mac)
+  - [Função de Ativação (tanh aproximada)](#função-de-ativação-tanh-aproximada)
+  - [Interface com a Placa (top_de1soc)](#interface-com-a-placa-top_de1soc)
+- [Modo de Uso](#modo-de-uso)
+  - [Configuração Inicial no Quartus Prime](#configuração-inicial-no-quartus-prime)
+  - [Operação na Placa](#operação-na-placa)
+  - [Escrita Manual nas Memórias](#escrita-manual-nas-memórias)
+- [Evolução dos Módulos](#evolução-dos-módulos)
+- [Testes e Validação](#testes-e-validação)
+  - [Metodologia de Testes](#metodologia-de-testes)
+  - [Testes Funcionais](#testes-funcionais)
+  - [Problemas Encontrados e Correções](#problemas-encontrados-e-correções)
+  - [Validação Final](#validação-final)
+  - [Uso de Recursos](#uso-de-recursos)
+- [Conclusão](#conclusão)
+- [Referências](#referências)
+
 ## Introdução e Definição do Problema
 
 Este relatório descreve o desenvolvimento da primeira etapa de um sistema embarcado voltado para a classificação de imagens de dígitos numéricos. O sistema completo será implementado em um SoC (System on Chip) heterogêneo, composto por um processador ARM integrado a uma FPGA, e será construído ao longo de três marcos de desenvolvimento.
@@ -22,6 +59,8 @@ O sistema utiliza cinco blocos de memória M10K da FPGA Cyclone V: MEM_IMG para 
 ### Conjunto de Instruções (ISA)
 
 O co-processador possui um conjunto próprio de instruções de 32 bits. As instruções disponíveis são STORE_IMG para carregar a imagem, STORE_WEIGHTS para carregar os pesos W_in e β, STORE_BIAS para carregar o bias, START para disparar a inferência, e STATUS para consultar o estado atual, retornando BUSY, DONE ou ERROR.
+
+![Formato ISA](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/formato_ISA%20(1)-1.png?raw=true)
 
 ### Interface com a Placa
 
@@ -52,6 +91,8 @@ A operação MAC é o núcleo computacional da rede neural, realizando sucessiva
 
 A FSM é o componente responsável por coordenar e sequenciar todas as operações do co-processador. A FSM de inferência percorre 12 estados: READY, MAC_H, MAC_H_W, MAC_H_LAST, ACTIV, SAVE_H, MAC_Y, MAC_Y_W, MAC_Y_LAST, SAVE_Y, DO_ARGMAX e DONE. Os estados intermediários de espera MAC_H_W e MAC_Y_W foram introduzidos para lidar com a latência de leitura das BRAMs, garantindo que os dados estejam disponíveis no momento correto para a operação MAC. Há ainda um estado WAIT que mantém o resultado visível nos displays por 3 segundos antes de retornar ao estado READY.
 
+![Fluxograma FSM](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Fluxograma%20FSM%20da%20Inferencia-1.png?raw=true)
+
 ### Argmax
 
 O argmax é a operação final da inferência, responsável por identificar o índice do maior valor entre os 10 resultados da camada de saída, correspondendo ao dígito previsto. No projeto, o argmax foi implementado de forma combinacional diretamente dentro da FSM, operando sobre um banco de 10 registradores internos y_reg[0..9] ao invés de uma memória externa, o que simplifica o circuito e reduz a latência desta etapa
@@ -63,12 +104,14 @@ O argmax é a operação final da inferência, responsável por identificar o í
 O acelerador ELM (elm_accel) é organizado em uma hierarquia de módulos interconectados por barramentos de fios agrupados em três categorias: fios de escrita, que partem da unidade de controle em direção às memórias; fios de leitura, que partem da FSM em direção às memórias; e fios de controle, que conectam a FSM às unidades de processamento MAC e Ativação. Essa separação garante que escrita e leitura nas memórias nunca ocorram simultaneamente, evitando conflitos de acesso.
 O fluxo de operação do sistema segue três fases distintas. Na primeira fase, a UC recebe as instruções de carregamento e escreve os dados nas memórias correspondentes, ativando as flags de controle conforme cada memória é preenchida. Na segunda fase, após o recebimento da instrução START com todas as flags ativas, a FSM assume o controle e executa sequencialmente os cálculos das duas camadas da rede neural. Na terceira fase, o resultado da inferência é disponibilizado no registrador pred e exibido no display HEX5 da placa.
 
-![Datapath]([(https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/3f51747464a908c20d40063b6e8e0150cdb719aa/docs/diagramas_datapath_fsm.pdf)])
+![Datapath e FSM](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/diagramas_datapath_fsm.png?raw=true)
 
 ### Unidade de Controle (UC)
 
 A UC recebe como entrada as instruções de 32 bits no formato ISA, o sinal instr_valid indicando que uma instrução está disponível, e os sinais infer_done e infer_busy vindos da FSM. Como saída, gera os sinais de escrita para cada memória (endereço, dado e enable de escrita), as flags img_ready, w_ready e b_ready, o sinal start_infer para disparar a FSM, e o status atual do sistema.
 A UC opera em dois modos independentes. No fluxo normal, acionado pelo KEY[1], ela decodifica o opcode nos bits [31:28] da instrução e direciona o dado para a memória correta: opcode 0001 escreve na MEM_IMG, opcode 0010 escreve na MEM_WIN, opcode 0011 escreve na MEM_BIAS, e opcode 0100 dispara a inferência. No modo de escrita manual, acionado pelo KEY[3] e isolado do fluxo normal, é possível escrever diretamente em qualquer memória durante testes, sendo bloqueado automaticamente enquanto a inferência estiver em andamento. Um multiplexador de saída prioriza a escrita manual quando ativa, garantindo que os dois modos nunca conflitem.
+
+![Fluxo de Dados](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/fluxo_de_dados-1.png?raw=true)
 
 ### Bloco de Memórias
 
@@ -161,8 +204,6 @@ Inicialmente, foram verificados os sinais de controle e o fluxo de execução ut
 
 A validação foi feita observando o comportamento do sistema durante a execução, verificando se as transições de estado ocorriam corretamente, se os dados eram lidos das memórias de forma adequada e se o valor predito final correspondia ao esperado.
 
----
-
 ### Testes Funcionais
 
 Os testes funcionais foram realizados para garantir o correto funcionamento de cada etapa do sistema.
@@ -172,8 +213,6 @@ Inicialmente, foi validado o processo de carregamento dos dados, verificando se 
 Em seguida, foi testado o disparo da inferência por meio da instrução START, garantindo que o sistema só iniciasse o processamento quando todas as flags estivessem ativas. Durante a execução, foi possível observar a mudança do estado READY para BUSY e, posteriormente, para DONE.
 
 Também foi validado o funcionamento da FSM ao longo dos estados de execução, verificando se os ciclos de leitura, cálculo na unidade MAC e armazenamento dos resultados ocorriam corretamente. Por fim, foi verificada a exibição do resultado final no display HEX5, confirmando a correta execução da operação de argmax.
-
----
 
 ### Problemas Encontrados e Correções
 
@@ -185,7 +224,6 @@ Outro problema identificado foi a leitura incorreta de dados das memórias, caus
 
 Também foi observado comportamento incorreto no acumulador da MAC quando o sinal de limpeza (clear_acc) não era acionado corretamente entre os neurônios. Isso fazia com que valores de execuções anteriores fossem acumulados, gerando resultados incorretos. A solução foi garantir que a FSM sempre ativasse o sinal clear_acc antes do início do cálculo de um novo neurônio.
 
----
 
 ### Validação Final
 
@@ -197,7 +235,8 @@ Dessa forma, foi possível validar o funcionamento completo do co-processador, d
 
 O relatório de síntese gerado pelo Quartus Prime 23.1 apresenta o seguinte consumo de recursos da FPGA Cyclone V (DE1-SoC) após a implementação completa do sistema:
 
-img
+![Logic Utilization](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Logica%20utilization.png?raw=true)
+![Dedicated Logic Registers](https://github.com/kiaralencar/FPGA-ELM-Image-Classifier/blob/main/png/Dedicated.png?raw=true)
 
 O uso de ALMs e registradores é bastante reduzido, representando apenas 4% e 2% do dispositivo respectivamente, o que demonstra que a lógica de controle e o datapath do co-processador são eficientes em termos de área.
 Os 5 DSP Blocks correspondem aos multiplicadores utilizados pela unidade MAC, que realiza as operações de multiplicação entre pixels e pesos na camada oculta, e entre os valores h e os pesos β na camada de saída.
@@ -217,3 +256,18 @@ Apesar dos resultados obtidos, alguns pontos de melhoria foram identificados dur
 Outro ponto importante é a limitação da interface atual, que depende exclusivamente de botões da placa para envio de instruções. Essa abordagem dificulta a integração com o processador ARM presente no SoC. Como evolução do projeto, seria ideal implementar uma interface baseada em mapeamento de memória (MMIO), permitindo que o processador controle o co-processador diretamente por meio de leitura e escrita em registradores, eliminando a dependência de interação manual.
 
 Por fim, melhorias na organização da arquitetura de controle também poderiam ser exploradas, como uma separação mais clara entre os estados de carregamento e inferência, garantindo maior flexibilidade e escalabilidade para futuras expansões do sistema.
+
+## Referências
+
+PATTERSON, David A.; HENNESSY, John L. **Computer Organization and Design: The Hardware/Software Interface, ARM Edition**. Amsterdam: Morgan Kaufmann, 2017.
+
+HUANG, Guang-Bin; ZHU, Qin-Yu; SIEW, Chee-Kheong. Extreme Learning Machine: Theory and Applications. **Neurocomputing**, v. 70, n. 1-3, p. 489-501, 2006.
+
+INTEL. **Cyclone V Device Overview**. Disponível em: https://www.intel.com/content/www/us/en/docs/programmable/683694/current/cyclone-v-device-overview.html
+
+TECHNOLOGIES, Terasic. **DE1-SoC Board**. Disponível em: https://www.terasic.com.tw/cgi-bin/page/archive.pl?Language=English&No=836
+
+INTEL. **Quartus Prime Pro Edition User Guide**. Disponível em: https://www.intel.com/content/www/us/en/docs/programmable/683846/current/overview.html
+
+MERRICK, Russell. **Getting Started with FPGAs**. San Francisco: No Starch Press, 2024.
+
